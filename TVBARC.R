@@ -366,9 +366,13 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
       if(ar<.60){sdmu <- sdmu * (.1)}
       if(ar>.90){sdmu <- sdmu * (10)}
     }
-    Atder <- timespIder %*% deltaA[1:J]*M[2]
+    
     mutder <- timespIder %*% exp(deltamu)
     if(order>0){
+      Atder <- matrix(0, length(data) - order, order)
+      for(j in 1:order1){
+        Atder[, j] <- timespIder %*% deltaA[(j-1)*J+1:J]*M[j+1]# exp(deltaA[(j-1)*J+1:J]) /  sum(exp(deltaA))
+      }
       Als[[itr]] <- At 
       Alsder[[itr]] <- Atder
     }
