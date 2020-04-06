@@ -144,7 +144,7 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
       # Make a full step for the position
       
       q = q + epsilon * p
-      q = q * (q >= 0)
+      #q = q * (q >= 0)
       
       # Make a full step for the momentum, except at end of trajectory
       
