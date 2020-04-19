@@ -19,3 +19,42 @@ Afnp     <- Reduce('+', fit$Afn) / length(fit$Afn)       #Estimated AR coef fns
 mufnp    <- Reduce('+', fit$Mfn) / length(fit$Mfn)       #Estimated mean fn
 mufnpder <- Reduce('+', fit$Mfnder) / length(fit$Mfnder) #Estimated derivative of mean fn
 Afnpder  <- Reduce('+', fit$Afnder) / length(fit$Afnder) #Estimated derivative of AR coef fns
+
+
+set.seed(20)
+n=200;
+
+resolution=n #means we compute at every 1/n
+
+g=(1:resolution)/resolution;a1=a1fun(g);a0=a0fun(g);b1=b1fun(g);
+
+cilmu=numeric(0);cila1=numeric(0);cilb1=numeric(0)
+accumu=numeric(0);accua1=numeric(0);accub1=numeric(0)
+
+a0 <- 25*exp(-(g-0.5)^2/0.1)
+a1 <- 0.3*(g-1)^2+0.1
+b1 <- 0.1*(g)^1.5+0.1
+
+e=rnorm(n);x=e;sigma2=array(0,n)
+sigma20=a0fun(0)/(1-b1fun(0));x0=rpois(1, sigma20);
+sigma2[1]=a0[1]+a1[1]*x0+b1[1]*sigma20;x[1]=rpois(1, sigma2[1])
+
+for (i in 2:n)
+{
+  sigma2[i]=a0[i]+a1[i]*x[i-1]+b1[i]*sigma2[i-1]
+  x[i]= rpois(1, sigma2[i])
+}  
+
+fitS <- fit.tvINGARCHMCMCcombo(as.numeric(c(x0,x)), order1 = 1, order2 = 1, norder = 4, knot = 6)#, sigma2in = sigma2[1], sigup = T)
+
+mufn_p  <- matrix(unlist(fitS$Mfn), length(fitS$Mfn[[1]]))
+Afn_p   <- matrix(unlist(fitS$Afn), length(fitS$Afn[[1]]))
+Bfn_p   <- matrix(unlist(fitS$Bfn), length(fitS$Bfn[[1]]))
+
+mufn_p  <- matrix(unlist(fitS$Mfn), length(fitS$Mfn[[1]]))
+Afn_p   <- matrix(unlist(fitS$Afn), length(fitS$Afn[[1]]))
+Bfn_p   <- matrix(unlist(fitS$Bfn), length(fitS$Bfn[[1]]))
+
+mutp <- rowMeans(mufn_p) #Posterior mean of mean function
+Atp  <- rowMeans(Afn_p)  #Posterior mean of AR(1)
+Btp  <- rowMeans(Bfn_p)  #Posterior mean of CH(1)
