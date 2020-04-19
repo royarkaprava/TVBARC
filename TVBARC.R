@@ -1,7 +1,7 @@
 #' @title The function to fit time varying AR(p) model for count data
 #' @description Takes the count-valued time series as input and returns MCMC samples
 #' @references Roy and Karmakar (2020)
-#'     "Bayesian semiparametric time varying AR(p) model for count data to study the spread of the COVID-19 cases"
+#'     "Bayesian semiparametric time varying model for count data to study the spread of the COVID-19 cases"
 #'
 #' @param data is the time-series of count-valued data
 #' @param order is the order of the time varying AR
@@ -185,14 +185,14 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
   
   time <- (1:length(data)) / length(data)
   
-  J       <- knot + 3 
-  timesp  <- bsplineS(time,  breaks=seq(0,1,1/knot))
+  J       <- knot + norder - 1
+  timesp  <- bsplineS(time,  breaks=seq(0,1,1/knot), norder = norder)
   timespI <- timesp
   
   if(order>0){timespI <- timesp[-(1:order), ]}
   timesp  <- matrix(rep(timespI, order), nrow = nrow(timespI))
   
-  timespIder <- bsplineS(time,  breaks=seq(0,1,1/knot), nderiv = 1)
+  timespIder <- bsplineS(time,  breaks=seq(0,1,1/knot), norder = norder, nderiv = 1)
   timespIder <- timespIder[-(1:order), ]
   
   Umu <- function(x){
