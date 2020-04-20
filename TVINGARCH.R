@@ -269,7 +269,7 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
     return(sum(compo) + sum(x^2) / (2*100))
   }
   
-  grad_UA <- function(x, deltaBb, Mm, tempsig){
+  grad_UA <- function(x, deltaBb=deltaB, Mm=M, tempsig=sigma2lat){
     At <- matrix(0, length(data) - order, order1)
     for(j in 1:order1){
       At[, j] <- timespI %*% x[(j-1)*J+1:J]*Mm[j+1]#exp(x[(j-1)*J+1:J]) /  sum(exp(x))
@@ -468,13 +468,13 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
   
   Ucombo <- function(x){
     temp    <- x[order2]
-    deltaAc <- x[1:length(deltaA) + order2]
-    deltaBc <- x[1:length(deltaB) + order2 + length(deltaA)]
-    deltaMc <- x[1:length(deltaM) + order2 + length(deltaA) + length(deltaB)]
+    #deltaAc <- x[1:length(deltaA) + order2]
+    deltaBc <- x[1:length(deltaB) + order2]
+    deltaMc <- x[1:length(deltaM) + order2 + length(deltaB)]
     
     At <- matrix(0, length(data) - order, order1)
     for(j in 1:order1){
-      At[, j] <- timespI %*% deltaAc[(j-1)*J+1:J]*exp(deltaMc[j+1]) /  sum(exp(deltaMc))
+      At[, j] <- timespI %*% deltaA[(j-1)*J+1:J]*exp(deltaMc[j+1]) /  sum(exp(deltaMc))
     }
     
     comp2 = At * X
@@ -502,17 +502,17 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
   
   grad_Ucombo <- function(x){
     temp    <- x[order2]
-    deltaAc <- x[1:length(deltaA) + order2]
-    deltaBc <- x[1:length(deltaB) + order2 + length(deltaA)]
-    deltaMc <- x[1:length(deltaM) + order2 + length(deltaA) + length(deltaB)]
+    #deltaAc <- x[1:length(deltaA) + order2]
+    deltaBc <- x[1:length(deltaB) + order2]
+    deltaMc <- x[1:length(deltaM) + order2 + length(deltaB)]
     
     Mc <- exp(deltaMc)/sum(exp(deltaMc))
     
-    ret1 <- grad_US(temp, deltaAc, deltaBc, Mc)
-    ret2 <- grad_UA(deltaAc, deltaBc, Mc, temp)
-    ret3 <- grad_UB(deltaBc, deltaAc, Mc, temp)
-    ret4 <- grad_UM(Mc, deltaAc, deltaBc, temp)
-    ret <- c(ret1, ret2, ret3, ret4)
+    ret1 <- grad_US(temp, deltaA, deltaBc, Mc)
+    #ret2 <- grad_UA(deltaA, deltaBc, Mc, temp)
+    ret3 <- grad_UB(deltaBc, deltaA, Mc, temp)
+    ret4 <- grad_UM(Mc, deltaA, deltaBc, temp)
+    ret <- c(ret1, ret3, ret4)
     return(array(ret))
   }
   
@@ -535,19 +535,19 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
       q = q + epsilon * p
       
       q0 <- q[order2]
-      q1 <- q[1:length(deltaA) + order2]
-      q2 <- q[1:length(deltaB) + order2 + length(deltaA)]
-      q3 <- q[1:length(deltaM) + order2 + length(deltaA) + length(deltaB)]
+      #q1 <- q[1:length(deltaA) + order2]
+      q2 <- q[1:length(deltaB) + order2]
+      q3 <- q[1:length(deltaM) + order2 + length(deltaB)]
       
       q0 = q0 * (q0 > 0)
-      q1 = q1 * (q1 >= 0)
-      q1 = (q1 > 1) + q1 * (q1 <= 1)
+      #q1 = q1 * (q1 >= 0)
+      #q1 = (q1 > 1) + q1 * (q1 <= 1)
       
       q2 = q2 * (q2 >= 0)
       q2 = (q2 > 1) + q2 * (q2 <= 1)
       # Make a full step for the momentum, except at end of trajectory
       
-      q <- c(q0, q1, q2, q3)
+      q <- c(q0, q2, q3)
       if (j!=L) p = p - epsilon * grad_U(q)
     }
     
@@ -621,7 +621,7 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
   {
     sigma2lat <- (deltaA[1]*M[2])/(1-(deltaB[1]*M[3]))
   }
-  delta <- c(sigma2lat, deltaA, deltaB, deltaM)
+  delta <- c(sigma2lat, deltaB, deltaM)
   temp <- sigma2lat
   if(order2>0){
     vart <- rep(0, length(data)-order) 
@@ -663,6 +663,18 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
     
     if(order>0){
       
+      if(order1>0){
+        temp   <- HMCA(UA, grad_UA, sdA, L = 30, deltaA, arA)
+        #print(sum(temp$up-deltaA)^2)
+        deltaA <- temp$up
+        arA    <- temp$arc
+        
+        At <- matrix(0, length(data) - order, order1)
+        for(j in 1:order1){
+          At[, j] <- timespI %*% deltaA[(j-1)*J+1:J]*M[j+1]# exp(deltaA[(j-1)*J+1:J]) /  sum(exp(deltaA))
+        }
+      }
+      
       if(order2==0){
         temp   <- HMC(UM, grad_UM, sdM, L = 30, deltaM, arM)
         #print(sum(temp$up-deltaM)^2)
@@ -671,33 +683,23 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
         
         M       <- exp(deltaM) / sum(exp(deltaM))
         
-        if(order1>0){
-          temp   <- HMCA(UA, grad_UA, sdA, L = 30, deltaA, arA)
-          #print(sum(temp$up-deltaA)^2)
-          deltaA <- temp$up
-          arA    <- temp$arc
-          
-          At <- matrix(0, length(data) - order, order1)
-          for(j in 1:order1){
-            At[, j] <- timespI %*% deltaA[(j-1)*J+1:J]*M[j+1]# exp(deltaA[(j-1)*J+1:J]) /  sum(exp(deltaA))
-          }
-        }}
+        }
       if(order2>0){
         temp   <- HMC_combo(Ucombo, grad_Ucombo, sdcom, L = 30, delta, arcom)
         #print(sum(temp$up-deltaA)^2)
         delta <- temp$up
         arcom <- temp$arc
         sigma2lat <- delta[order2]
-        deltaA <- delta[1:length(deltaA) + order2]
-        deltaB <- delta[1:length(deltaB) + order2 + length(deltaA)]
-        deltaM <- delta[1:length(deltaM) + order2 + length(deltaA) + length(deltaB)] 
+        #deltaA <- delta[1:length(deltaA) + order2]
+        deltaB <- delta[1:length(deltaB) + order2]
+        deltaM <- delta[1:length(deltaM) + order2 + length(deltaB)] 
         
         M       <- exp(deltaM) / sum(exp(deltaM))
         
-        At <- matrix(0, length(data) - order, order1)
-        for(j in 1:order1){
-          At[, j] <- timespI %*% deltaA[(j-1)*J+1:J]*M[j+1]# exp(deltaA[(j-1)*J+1:J]) /  sum(exp(deltaA))
-        }
+        # At <- matrix(0, length(data) - order, order1)
+        # for(j in 1:order1){
+        #   At[, j] <- timespI %*% deltaA[(j-1)*J+1:J]*M[j+1]# exp(deltaA[(j-1)*J+1:J]) /  sum(exp(deltaA))
+        # }
         
         Bt <- matrix(0, length(data) - order, order2)
         for(j in 1:order2){
@@ -725,10 +727,7 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
     if(itr %% 100 == 0){
       if(order > 0){
         if(order2==0){
-          ar <- arA/ itr
-          cat(ar, "acceptance rate for A")
-          if(ar<.60){sdA <- sdA * (.1)}
-          if(ar>.90){sdA <- sdA * (10)}
+         
           
           ar <- arM/ itr
           cat(ar, "acceptance rate for M")
@@ -736,6 +735,10 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
           if(ar>.90){sdM <- sdM * (10)} 
         }
         
+        ar <- arA/ itr
+        cat(ar, "acceptance rate for A")
+        if(ar<.60){sdA <- sdA * (.1)}
+        if(ar>.90){sdA <- sdA * (10)}
         
         if(order2>0){
           ar <- arcom/ itr
