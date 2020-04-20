@@ -36,7 +36,7 @@ a1 <- 0.3*(g-1)^2+0.1
 b1 <- 0.1*(g)^1.5+0.1
 
 e=rnorm(n);x=e;sigma2=array(0,n)
-sigma20=a0fun(0)/(1-b1fun(0));x0=rpois(1, sigma20);
+sigma20=a0[1]/(1-b1[1]);x0=rpois(1, sigma20);
 sigma2[1]=a0[1]+a1[1]*x0+b1[1]*sigma20;x[1]=rpois(1, sigma2[1])
 
 for (i in 2:n)
@@ -45,7 +45,7 @@ for (i in 2:n)
   x[i]= rpois(1, sigma2[i])
 }  
 
-fitS <- fit.tvINGARCHMCMCcombo(as.numeric(c(x0,x)), order1 = 1, order2 = 1, norder = 4, knot = 6)#, sigma2in = sigma2[1], sigup = T)
+fitS <- fit.tvINGARCHMCMCcombo(as.numeric(c(x0,x)), order1 = 1, order2 = 1, norder = 4, knot = 6)
 
 mufn_p  <- matrix(unlist(fitS$Mfn), length(fitS$Mfn[[1]]))
 Afn_p   <- matrix(unlist(fitS$Afn), length(fitS$Afn[[1]]))
