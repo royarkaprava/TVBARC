@@ -457,8 +457,8 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
     }
     part1 <- - Y/vart + 1
     
-    comp2der <- array(crossprod(part1, At*X))
-    if(order2>0){comp2der <- array(crossprod(part1, cbind(At*X, Bt*sigma2m)))}
+    comp2der <- array(crossprod(part1, Atder*X))
+    if(order2>0){comp2der <- array(crossprod(part1, cbind(Atder*X, Btder*sigma2m)))}
     
     #comp2der <- c(0, comp2der)
     expxdev <- diag(exp(x)/sum(exp(x))) - tcrossprod(exp(x), exp(x)) /  (sum(exp(x)))^2
