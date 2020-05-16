@@ -12,7 +12,7 @@
 
 #' @return fit.tvARMCMCunbd returns a list of the posterior samples of mean and AR coefficient
 #' functions (Mfn and Afn) along with the samples of their first derivatives (Mfnder and Afnder) \cr
-fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 5000, burn = 2500){
+fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 10000, burn = 5000){
   library(fda)
   set.seed(1)
   HMC = function (U, grad_U, epsilon, L = 30, current_q, arc)
@@ -276,7 +276,7 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
     
     part1 <- 1-Y/lambdat
     
-    comp2der <- array(crossprod(part1, At*X))
+    comp2der <- array(crossprod(part1, Atder*X))
     
     #comp2der <- c(0, comp2der)
     expxdev <- diag(exp(x)/sum(exp(x))) - tcrossprod(exp(x), exp(x)) /  (sum(exp(x)))^2
@@ -317,6 +317,7 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
   Mlsder <- list()
   Alsder <- list()
   pb <- txtProgressBar(min = itr, max = Total_itr, style = 3)
+  Pred <- rep(0, Total_itr)
   while(itr < Total_itr){
     itr <- itr + 1
     temp    <- HMC(Umu, grad_Umu, sdmu, L = 30, deltamu, armu)
@@ -348,6 +349,13 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
       }
     }
     
+    comp2 = array(At * X)
+    if(order==0){comp2 = rep(0, length(mut))}
+    if(order>1){comp2 = array(rowSums(At * X))}
+    lambdat <- array(mut) + array(comp2)
+    
+    Pred[itr] <- mean((Y-lambdat)^2)
+    
     if(itr %% 100 == 0){
       if(order > 0){
         ar <- arA/ itr
@@ -366,13 +374,17 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
       if(ar<.60){sdmu <- sdmu * (.1)}
       if(ar>.90){sdmu <- sdmu * (10)}
     }
-    
     mutder <- timespIder %*% exp(deltamu)
     if(order>0){
       Atder <- matrix(0, length(data) - order, order)
       for(j in 1:order){
         Atder[, j] <- timespIder %*% deltaA[(j-1)*J+1:J]*M[j+1]# exp(deltaA[(j-1)*J+1:J]) /  sum(exp(deltaA))
       }
+      Als[[itr]] <- At 
+      Alsder[[itr]] <- Atder
+    }
+    
+    if(order>0){
       Als[[itr]] <- At 
       Alsder[[itr]] <- Atder
     }
@@ -388,7 +400,7 @@ fit.tvARMCMCunbd <- function(data, order = 5, knot = 4, norder = 4, Total_itr = 
     #points(At[, 2], col=3)
   }
   close(pb)
-  out <- list(Afn = Als[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], Afnder = Alsder[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])
-  if(order==0){out <- list(Mfn = Mls[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])}
+  out <- list(pred=Pred[(burn+1):Total_itr], Afn = Als[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], Afnder = Alsder[(burn+1):Total_itr], mufnder = Mlsder[(burn+1):Total_itr])
+  if(order==0){out <- list(pred=Pred[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], mufnder = Mlsder[(burn+1):Total_itr])}
   return(out)
 }
