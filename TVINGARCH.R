@@ -1,7 +1,7 @@
 #' @title The function to fit time varying generalized autoregressive conditional heteroscedastic (p,q) model for count data
 #' @description Takes the count-valued time series as input and returns MCMC samples
 #' @references Roy and Karmakar (2020)
-#'     "Bayesian semiparametric time varying model for count data to study the spread of the COVID-19 cases"
+#'     "Time-varying auto-regressive models for count time-series"
 #'
 #' @param data is the time-series of count-valued data
 #' @param order1 is the order of the time varying AR part, parameter p
@@ -11,11 +11,11 @@
 #' @param Total_sample is the total number of iterations of MCMC
 #' @param burn is the number of burn-in MCMC samples
 
-#' @return fit.tvARMCMCunbd returns a list of the posterior samples of mean and AR coefficient
-#' functions (Mfn and Afn) along with the samples of their first derivatives (Mfnder and Afnder) \cr
+#' @return fit.tvINGARCHMCMCcombo returns a list of the posterior samples of lambda0, mean, AR and CH coefficient
+#' functions (sig2lp, Mfn, Afn and Bfn) \cr
 
-#Assume order1>0 if order2>0
-fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norder = 4, Total_itr = 10000, burn = 5000){
+#Assume order1=1 if order2=1
+fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norder = 4, P = 10, Total_itr = 10000, burn = 5000){
   library(fda)
   library(pracma)
   set.seed(1)
@@ -594,9 +594,57 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
     } 
   }
   At <- 0
-  deltamu <- rnorm(ncol(timespI))
-  deltaA  <- runif(ncol(timespI)*order1)
-  deltaB  <- runif(ncol(timespI)*order2)
+  
+  # fit <- tvAR(data, p = P) 
+  # #design <- ginv(t(timesp[-1:15]) %*% timesp[-1:15]) %*% t( timesp[-1:15])
+  # 
+  # p1 <- fit$coefficients[, 1]
+  # p2 <- fit$coefficients[, 2]
+  # p3 <- rowSums(fit$coefficients[, 3:P])
+  # 
+  # p23 <- p2 / p3 + 1
+  # 
+  # bcoef  <- 1/p23
+  # mucoef <- p1*(1-bcoef)
+  # acoef  <- p2
+  # 
+  # fit1    <- lm(mucoef~timesp[-c(1:P),]-1)
+  # temp    <- fit1$coefficients
+  # temp[which(is.na(temp))] <- 0.1
+  # temp[(temp < 0)] <- 0.1
+  # deltamu <- log(array(temp))
+  # 
+  # fit2    <- lm(acoef~timesp[-c(1:P),]-1)
+  # temp    <- fit2$coefficients
+  # temp[which(is.na(temp))] <- 0
+  # temp[(temp < 0)] <- 0
+  # deltaA  <- array(temp)
+  # 
+  # fit3    <- lm(bcoef~timesp[-c(1:P),]-1)
+  # temp    <- fit3$coefficients
+  # temp[which(is.na(temp))] <- 0
+  # temp[(temp < 0)] <- 0
+  # deltaB  <- array(temp)
+  
+  deltamu <- rnorm(ncol(timesp))
+  deltaA  <- runif(ncol(timesp))
+  deltaB  <- runif(ncol(timesp))
+  
+  if((order1+order2)>0){
+    deltaM  <- rep(0, order1+order2+1)#rnorm(order1+order2+1)
+    deltaM[1] <- -30
+    M       <- exp(deltaM) / sum(exp(deltaM))
+  }
+  mut     <- timespI %*% exp(deltamu)
+  
+  # deltaA <- deltaA / M[2]
+  # deltaB <- deltaB / M[3]
+  # 
+  # deltaA[(deltaA>1)] <- 1
+  # deltaB[(deltaB>1)] <- 1
+  # deltamu <- rnorm(ncol(timespI))
+  # deltaA  <- runif(ncol(timespI)*order1)
+  # deltaB  <- runif(ncol(timespI)*order2)
   if((order1+order2)>0){
     deltaM  <- rnorm(order1+order2+1)
     M       <- exp(deltaM) / sum(exp(deltaM))
@@ -650,6 +698,7 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
   Mlsder <- list()
   Alsder <- list()
   Blsder <- list()
+  sig2ls <- list()
   pb <- txtProgressBar(min = itr, max = Total_itr, style = 3)
   Pred <- rep(0, Total_itr)
   while(itr < Total_itr){
@@ -683,7 +732,7 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
         
         M       <- exp(deltaM) / sum(exp(deltaM))
         
-        }
+      }
       if(order2>0){
         temp   <- HMC_combo(Ucombo, grad_Ucombo, sdcom, L = 30, delta, arcom)
         #print(sum(temp$up-deltaA)^2)
@@ -721,13 +770,13 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
         }
       }
     }
-    
+    sig2ls[[itr]]   <- sigma2lat
     Pred[itr] <- mean((Y-vart)^2)
     
     if(itr %% 100 == 0){
       if(order > 0){
         if(order2==0){
-         
+          
           
           ar <- arM/ itr
           cat(ar, "acceptance rate for M")
@@ -790,8 +839,8 @@ fit.tvINGARCHMCMCcombo <- function(data, order1 = 5, order2 = 0, knot = 4, norde
     #print(sigma2lat)
   }
   close(pb)
-  if(order1>0){out <- list(pred = Pred[(burn+1):Total_itr], Afn = Als[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], Afnder = Alsder[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])}
-  if(order2>0){out <- list(pred = Pred[(burn+1):Total_itr], Afn = Als[(burn+1):Total_itr], Bfn = Bls[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], Afnder = Alsder[(burn+1):Total_itr], Bfnder = Blsder[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])}
+  if(order1>0){out <- list(sig2lp = sig2ls[(burn+1):Total_itr], pred = Pred[(burn+1):Total_itr], Afn = Als[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], Afnder = Alsder[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])}
+  if(order2>0){out <- list(sig2lp = sig2ls[(burn+1):Total_itr], pred = Pred[(burn+1):Total_itr], Afn = Als[(burn+1):Total_itr], Bfn = Bls[(burn+1):Total_itr], Mfn = Mls[(burn+1):Total_itr], Afnder = Alsder[(burn+1):Total_itr], Bfnder = Blsder[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])}
   if(order==0){out <- list(Mfn = Mls[(burn+1):Total_itr], Mfnder = Mlsder[(burn+1):Total_itr])}
   return(out)
 }
