@@ -26,6 +26,8 @@ n=200;
 
 resolution=n #means we compute at every 1/n
 
+g=(1:resolution)/resolution
+
 a0 <- 25*exp(-(g-0.5)^2/0.1)
 a1 <- 0.3*(g-1)^2+0.1
 b1 <- 0.1*(g)^1.5+0.1
