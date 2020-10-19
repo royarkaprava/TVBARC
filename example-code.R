@@ -26,11 +26,6 @@ n=200;
 
 resolution=n #means we compute at every 1/n
 
-g=(1:resolution)/resolution;a1=a1fun(g);a0=a0fun(g);b1=b1fun(g);
-
-cilmu=numeric(0);cila1=numeric(0);cilb1=numeric(0)
-accumu=numeric(0);accua1=numeric(0);accub1=numeric(0)
-
 a0 <- 25*exp(-(g-0.5)^2/0.1)
 a1 <- 0.3*(g-1)^2+0.1
 b1 <- 0.1*(g)^1.5+0.1
